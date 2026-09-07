@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Well Site Lag Time Calculator (A.M.Thein_Geol)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --bg:#0f1720; --panel:#182634; --panel2:#1f3140; --border:#2c4256;
+    --accent:#3ea6ff; --accent2:#ffb454; --text:#e8eef4; --dim:#93a7ba;
+    --good:#5fd68b; --warn:#ff8a65; --casing:#7c8ea3; --openhole:#c9a06a;
+    --openhole2:#b98a52; --collar:#4a4a52; --mud:#28455c; --liner:#5c7a95;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI', Arial, sans-serif; background:var(--bg); color:var(--text);
+    padding:16px;
+  }
+  h1{font-size:20px; margin:0 0 2px 0; letter-spacing:.3px;}
+  .sub{color:var(--dim); font-size:12.5px; margin-bottom:14px;}
+  .layout{
+    display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:start;
+  }
+  @media (max-width: 880px){ .layout{grid-template-columns: 1fr;} }
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px;
+    margin-bottom:14px;
+  }
+  .panel h2{
+    font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent);
+    margin:0 0 10px 0; display:flex; align-items:center; justify-content:space-between;
+  }
+  .row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+  .field{flex:1; min-width:130px;}
+  label{display:block; font-size:11.5px; color:var(--dim); margin-bottom:3px;}
+  input[type=number], select{
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:7px 8px; border-radius:6px; font-size:13.5px; outline:none;
+  }
+  input[type=number]:focus, select:focus{border-color:var(--accent);}
+  input[type=checkbox]{transform:scale(1.1); margin-right:6px;}
+  .checkline{display:flex; align-items:center; font-size:12.5px; color:var(--text); margin:6px 0;}
+  .unit-toggle{display:flex; border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .unit-toggle button{
+    background:var(--panel2); color:var(--dim); border:none; padding:5px 10px; font-size:11.5px; cursor:pointer;
+  }
+  .unit-toggle button.active{background:var(--accent); color:#04141f; font-weight:600;}
+  .sketch-wrap{position:sticky; top:16px;}
+  svg{width:100%; height:auto; display:block; background:linear-gradient(#101c26,#0c161e); border-radius:8px;}
+  .results-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat{
+    background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+  }
+  .stat .val{font-size:19px; font-weight:700; color:var(--good);}
+  .stat.hero .val{color:var(--accent2); font-size:24px;}
+  .stat .lbl{font-size:11px; color:var(--dim); margin-top:2px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px;}
+  th,td{text-align:left; padding:5px 6px; border-bottom:1px solid var(--border);}
+  th{color:var(--dim); font-weight:600; font-size:11px; text-transform:uppercase;}
+  td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:8px;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .swatch{width:11px; height:11px; border-radius:2px; display:inline-block;}
+  .footer-note{font-size:11px; color:var(--dim); margin-top:6px; line-height:1.5;}
+  .warn-box{
+    background:#3a2a1c; border:1px solid #6b4a25; color:#ffcb8a; font-size:12px;
+    padding:8px 10px; border-radius:6px; margin-top:8px; display:none;
+  }
+  .print-btn{
+    background:var(--accent); color:#04141f; border:none; padding:8px 14px; border-radius:6px;
+    font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  @media print{
+    .panel h2, .no-print{display:none !important;}
+    body{background:#fff; color:#000;}
+    .panel{border:1px solid #999; background:#fff;}
+  }
+</style>
+</head>
+<body>
+
+<h1>Well Site Lag Time Calculator</h1>
+<div class="sub">Mudlogging / wellsite geology tool; Bit-to-Surface cuttings lag time.(A.M.Thein_Geol) </div>
+
+<div class="layout">
+  <!-- LEFT: INPUTS -->
+  <div>
+    <div class="panel">
+      <h2>Units
+        <span class="unit-toggle no-print">
+          <button id="btnField" class="active" onclick="setUnits('field')">Field (ft/in/bbl)</button>
+          <button id="btnMetric" onclick="setUnits('metric')">Metric (m/mm/L)</button>
+        </span>
+      </h2>
+      <div class="footer-note">Field: depths in ft, diameters in inches, volume in bbl. Metric: depths in m, diameters in mm, volume in liters.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Well &amp; Hole Geometry</h2>
+      <div class="row">
+        <div class="field">
+          <label id="lblTD">Total Depth / Current Bit Depth (ft)</label>
+          <input type="number" id="td" value="9500" step="1">
+        </div>
+        <div class="field">
+          <label id="lblCsg">Casing Shoe Depth (ft)</label>
+          <input type="number" id="csgDepth" value="4200" step="1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label id="lblCsgID">Casing ID (in)</label>
+          <input type="number" id="csgID" value="8.681" step="0.001">
+        </div>
+        <div class="field">
+          <label id="lblBit">Open Hole Diameter (in)</label>
+          <input type="number" id="bitDia" value="8.5" step="0.001">
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input type="checkbox" id="useSecondOH" onchange="toggleSecondOH()"> Well has a second open hole section (liner / directional hole-size change)
+      </div>
+      <div class="row" id="secondOHRow" style="display:none;">
+        <div class="field">
+          <label id="lblCrossover">Liner / Crossover Depth (ft)</label>
+          <input type="number" id="crossoverDepth" value="7200" step="1">
+        </div>
+        <div class="field">
+          <label id="lblBit2">Open Hole 2 Diameter (in)</label>
+          <input type="number" id="bitDia2" value="6.125" step="0.001">
+        </div>
+      </div>
+      <div class="footer-note" id="secondOHNote" style="display:none;">Open Hole 1 runs from the casing shoe to the crossover depth. Open Hole 2 runs from the crossover depth to total depth, at the smaller diameter — typical below a liner or after a directional hole-size change.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Drill String</h2>
+      <div class="row">
+        <div class="field">
+          <label id="lblDP">Drill Pipe OD (in)</label>
+          <input type="number" id="dpOD" value="5.0" step="0.001">
+        </div>
+        <div class="field">
+          <label id="lblDPID">Drill Pipe ID (in) <span style="color:var(--dim)">(for pipe capacity, optional)</span></label>
+          <input type="number" id="dpID" value="4.276" step="0.001">
+        </div>
+      </div>
+      <div class="checkline">
+        <input type="checkbox" id="useDC" onchange="toggleDC()"> Include drill collars / BHA (in current open hole section)
+      </div>
+      <div class="row" id="dcRow" style="display:none;">
+        <div class="field">
+          <label id="lblDCOD">Drill Collar OD (in)</label>
+          <input type="number" id="dcOD" value="6.5" step="0.001">
+        </div>
+        <div class="field">
+          <label id="lblDCLen">Drill Collar Length (ft)</label>
+          <input type="number" id="dcLen" value="600" step="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Pump Data</h2>
+      <div class="checkline">
+        <input type="checkbox" id="usePumpCalc" onchange="togglePumpCalc()"> Calculate output from liner size (triplex)
+      </div>
+      <div id="directPumpRow">
+        <div class="row">
+          <div class="field">
+            <label id="lblBblStk">Pump Output (bbl/stroke)</label>
+            <input type="number" id="bblStroke" value="0.1237" step="0.0001">
+          </div>
+          <div class="field">
+            <label>Pump Rate (strokes/min, SPM)</label>
+            <input type="number" id="spm" value="80" step="1">
+          </div>
+        </div>
+      </div>
+      <div id="calcPumpRow" style="display:none;">
+        <div class="row">
+          <div class="field">
+            <label id="lblLiner">Liner Diameter (in)</label>
+            <input type="number" id="linerDia" value="6.0" step="0.01">
+          </div>
+          <div class="field">
+            <label id="lblStroke">Stroke Length (in)</label>
+            <input type="number" id="strokeLen" value="12" step="0.5">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Volumetric Efficiency (%)</label>
+            <input type="number" id="pumpEff" value="95" step="1">
+          </div>
+          <div class="field">
+            <label>Pump Rate (SPM)</label>
+            <input type="number" id="spm2" value="80" step="1">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Number of Cylinders</label>
+            <input type="number" id="numCyl" value="3" step="1" min="1">
+          </div>
+        </div>
+        <div class="footer-note">Single-acting pump: output/stroke = (π/4) × liner² × stroke length × number of cylinders × efficiency, converted to volume units. Default is 3 for a standard triplex pump.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: SKETCH + RESULTS -->
+  <div class="sketch-wrap">
+    <div class="panel">
+      <h2>Well Sketch</h2>
+      <svg id="sketch" viewBox="0 0 320 420" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--casing)"></i>Casing</span>
+        <span><i class="swatch" style="background:var(--openhole)"></i>Open Hole 1</span>
+        <span><i class="swatch" style="background:var(--openhole2)"></i>Open Hole 2</span>
+        <span><i class="swatch" style="background:var(--collar)"></i>Drill Collars</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Results</h2>
+      <div class="results-grid">
+        <div class="stat hero" style="grid-column:1/-1;">
+          <div class="val" id="outLagTime">–</div>
+          <div class="lbl">Lag Time (bit → surface)</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="outLagStrokes">–</div>
+          <div class="lbl">Lag Strokes</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="outAnnVol">–</div>
+          <div class="lbl">Total Annular Volume</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="outPumpOutput">–</div>
+          <div class="lbl">Pump Output (per min)</div>
+        </div>
+        <div class="stat">
+          <div class="val" id="outSampleTime">–</div>
+          <div class="lbl">Sample-at-Surface Time</div>
+        </div>
+      </div>
+      <div class="warn-box" id="warnBox"></div>
+
+      <table>
+        <thead><tr><th>Annulus Section</th><th class="num">Length</th><th class="num">Capacity</th><th class="num">Volume</th></tr></thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+
+      <div class="row no-print" style="margin-top:12px; align-items:flex-end;">
+        <div class="field">
+          <label>Time now (for sample-time estimate)</label>
+          <input type="datetime-local" id="nowTime">
+        </div>
+        <button class="print-btn no-print" onclick="window.print()">Print / Save PDF</button>
+      </div>
+      <div class="row no-print" style="margin-top:10px; align-items:flex-end;">
+        <button class="print-btn no-print" id="alarmBtn" onclick="setSampleAlarm()">Set Sample Alarm</button>
+        <button class="print-btn no-print" id="cancelAlarmBtn" onclick="cancelSampleAlarm()" style="background:#ff8a65;">Cancel Alarm</button>
+      </div>
+      <div class="footer-note" id="alarmStatus">Sample alarm is not set.</div>
+      <div class="footer-note">Lag time = total open annular volume ÷ pump output rate. This is the classic "bottoms-up" time used to schedule sample catching, gas readings and cuttings description at surface.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let unitSystem = 'field';
+
+function setUnits(u){
+  unitSystem = u;
+  document.getElementById('btnField').classList.toggle('active', u==='field');
+  document.getElementById('btnMetric').classList.toggle('active', u==='metric');
+  const depthUnit = u==='field' ? 'ft' : 'm';
+  const diaUnit = u==='field' ? 'in' : 'mm';
+  document.getElementById('lblTD').textContent = `Total Depth / Current Bit Depth (${depthUnit})`;
+  document.getElementById('lblCsg').textContent = `Casing Shoe Depth (${depthUnit})`;
+  document.getElementById('lblCsgID').textContent = `Casing ID (${diaUnit})`;
+  document.getElementById('lblBit').textContent = `Open Hole Diameter (${diaUnit})`;
+  document.getElementById('lblCrossover').textContent = `Liner / Crossover Depth (${depthUnit})`;
+  document.getElementById('lblBit2').textContent = `Open Hole 2 Diameter (${diaUnit})`;
+  document.getElementById('lblDP').textContent = `Drill Pipe OD (${diaUnit})`;
+  document.getElementById('lblDPID').textContent = `Drill Pipe ID (${diaUnit}) (optional)`;
+  document.getElementById('lblDCOD').textContent = `Drill Collar OD (${diaUnit})`;
+  document.getElementById('lblDCLen').textContent = `Drill Collar Length (${depthUnit})`;
+  document.getElementById('lblBblStk').textContent = u==='field' ? 'Pump Output (bbl/stroke)' : 'Pump Output (L/stroke)';
+  document.getElementById('lblLiner').textContent = `Liner Diameter (${diaUnit})`;
+  document.getElementById('lblStroke').textContent = `Stroke Length (${diaUnit})`;
+
+  if(u==='metric'){
+    setIfDefault('td', 9500, 2896);
+    setIfDefault('csgDepth', 4200, 1280);
+    setIfDefault('csgID', 8.681, 220.5);
+    setIfDefault('bitDia', 8.5, 215.9);
+    setIfDefault('crossoverDepth', 7200, 2195);
+    setIfDefault('bitDia2', 6.125, 155.6);
+    setIfDefault('dpOD', 5.0, 127);
+    setIfDefault('dpID', 4.276, 108.6);
+    setIfDefault('dcOD', 6.5, 165.1);
+    setIfDefault('dcLen', 600, 183);
+    setIfDefault('bblStroke', 0.1237, 19.66);
+    setIfDefault('linerDia', 6.0, 152.4);
+    setIfDefault('strokeLen', 12, 304.8);
+  } else {
+    setIfDefault('td', 2896, 9500);
+    setIfDefault('csgDepth', 1280, 4200);
+    setIfDefault('csgID', 220.5, 8.681);
+    setIfDefault('bitDia', 215.9, 8.5);
+    setIfDefault('crossoverDepth', 2195, 7200);
+    setIfDefault('bitDia2', 155.6, 6.125);
+    setIfDefault('dpOD', 127, 5.0);
+    setIfDefault('dpID', 108.6, 4.276);
+    setIfDefault('dcOD', 165.1, 6.5);
+    setIfDefault('dcLen', 183, 600);
+    setIfDefault('bblStroke', 19.66, 0.1237);
+    setIfDefault('linerDia', 152.4, 6.0);
+    setIfDefault('strokeLen', 304.8, 12);
+  }
+  calc();
+}
+function setIfDefault(id, oldDefault, newDefault){
+  const el = document.getElementById(id);
+  if(Math.abs(parseFloat(el.value) - oldDefault) < 0.01) el.value = newDefault;
+}
+
+function toggleDC(){
+  document.getElementById('dcRow').style.display = document.getElementById('useDC').checked ? 'flex' : 'none';
+  calc();
+}
+function toggleSecondOH(){
+  const on = document.getElementById('useSecondOH').checked;
+  document.getElementById('secondOHRow').style.display = on ? 'flex' : 'none';
+  document.getElementById('secondOHNote').style.display = on ? 'block' : 'none';
+  calc();
+}
+function togglePumpCalc(){
+  const on = document.getElementById('usePumpCalc').checked;
+  document.getElementById('directPumpRow').style.display = on ? 'none' : 'block';
+  document.getElementById('calcPumpRow').style.display = on ? 'block' : 'none';
+  calc();
+}
+
+function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
+
+function calc(){
+  const td = num('td');
+  const csgDepth = num('csgDepth');
+  const csgID = num('csgID');
+  const bitDia = num('bitDia');
+  const dpOD = num('dpOD');
+  const useDC = document.getElementById('useDC').checked;
+  const dcOD = useDC ? num('dcOD') : 0;
+  const dcLenInput = useDC ? num('dcLen') : 0;
+  const useSecondOH = document.getElementById('useSecondOH').checked;
+  let crossoverDepth = useSecondOH ? num('crossoverDepth') : td;
+  let bitDia2 = useSecondOH ? num('bitDia2') : bitDia;
+
+  const warnBox = document.getElementById('warnBox');
+  warnBox.style.display = 'none';
+  warnBox.textContent = '';
+  let warnings = [];
+
+  let cappedCsgDepth = Math.min(csgDepth, td);
+  if(useSecondOH){
+    crossoverDepth = Math.max(cappedCsgDepth, Math.min(crossoverDepth, td));
+  }
+
+  const oh1Top = cappedCsgDepth;
+  const oh1Bottom = useSecondOH ? crossoverDepth : td;
+  const oh2Top = oh1Bottom;
+  const oh2Bottom = td;
+  let oh1Len = Math.max(oh1Bottom - oh1Top, 0);
+  let oh2Len = useSecondOH ? Math.max(oh2Bottom - oh2Top, 0) : 0;
+
+  // drill collars sit in the deepest active open hole section
+  const activeOHLen = useSecondOH ? oh2Len : oh1Len;
+  const effDcLen = Math.min(dcLenInput, activeOHLen);
+  if(useDC && dcLenInput > activeOHLen && activeOHLen > 0){
+    warnings.push('Drill collar length exceeds the current open hole section length — capped to fit.');
+  }
+
+  let oh1DpLen, oh1DcLen, oh2DpLen, oh2DcLen;
+  if(useSecondOH){
+    oh1DpLen = oh1Len; oh1DcLen = 0;
+    oh2DpLen = Math.max(oh2Len - (useDC ? effDcLen : 0), 0);
+    oh2DcLen = useDC ? effDcLen : 0;
+  } else {
+    oh1DpLen = Math.max(oh1Len - (useDC ? effDcLen : 0), 0);
+    oh1DcLen = useDC ? effDcLen : 0;
+    oh2DpLen = 0; oh2DcLen = 0;
+  }
+
+  let capCased, capOH1DP, capOH1DC, capOH2DP, capOH2DC, unitVol, unitCap;
+  if(unitSystem === 'field'){
+    capCased = (csgID*csgID - dpOD*dpOD) / 1029.4;
+    capOH1DP = (bitDia*bitDia - dpOD*dpOD) / 1029.4;
+    capOH1DC = (bitDia*bitDia - dcOD*dcOD) / 1029.4;
+    capOH2DP = (bitDia2*bitDia2 - dpOD*dpOD) / 1029.4;
+    capOH2DC = (bitDia2*bitDia2 - dcOD*dcOD) / 1029.4;
+    unitVol = 'bbl'; unitCap = 'bbl/ft';
+  } else {
+    capCased = 0.0007854 * (csgID*csgID - dpOD*dpOD);
+    capOH1DP = 0.0007854 * (bitDia*bitDia - dpOD*dpOD);
+    capOH1DC = 0.0007854 * (bitDia*bitDia - dcOD*dcOD);
+    capOH2DP = 0.0007854 * (bitDia2*bitDia2 - dpOD*dpOD);
+    capOH2DC = 0.0007854 * (bitDia2*bitDia2 - dcOD*dcOD);
+    unitVol = 'L'; unitCap = 'L/m';
+  }
+
+  let negFlag = false;
+  if(capCased < 0){ capCased = 0; negFlag = true; }
+  if(capOH1DP < 0){ capOH1DP = 0; negFlag = true; }
+  if(capOH2DP < 0){ capOH2DP = 0; negFlag = true; }
+  if(useDC){
+    if(capOH1DC < 0){ capOH1DC = 0; negFlag = true; }
+    if(capOH2DC < 0){ capOH2DC = 0; negFlag = true; }
+  }
+  if(negFlag) warnings.push('One or more OD values are larger than the hole/casing ID entered for that section — check inputs.');
+  if(useSecondOH && bitDia2 > bitDia) warnings.push('Open Hole 2 diameter is larger than Open Hole 1 — usually the lower section is the smaller size below a liner.');
+
+  if(warnings.length){
+    warnBox.style.display = 'block';
+    warnBox.textContent = warnings.join(' ');
+  }
+
+  const volCased = capCased * cappedCsgDepth;
+  const volOH1DP = capOH1DP * oh1DpLen;
+  const volOH1DC = capOH1DC * oh1DcLen;
+  const volOH2DP = capOH2DP * oh2DpLen;
+  const volOH2DC = capOH2DC * oh2DcLen;
+  const totalAnnVol = volCased + volOH1DP + volOH1DC + volOH2DP + volOH2DC;
+
+  let bblPerStroke, spm;
+  const usePumpCalc = document.getElementById('usePumpCalc').checked;
+  if(usePumpCalc){
+    const liner = num('linerDia');
+    const stroke = num('strokeLen');
+    const eff = num('pumpEff') / 100;
+    const cyl = num('numCyl') || 3;
+    spm = num('spm2');
+    // Single-acting pump displacement per stroke = (pi/4) x D^2 x L, per cylinder.
+    // Multiply by number of cylinders, then convert to the working volume unit.
+    if(unitSystem === 'field'){
+      // D, L in inches -> cubic inches -> bbl (1 bbl = 9702 cu in)
+      bblPerStroke = (Math.PI/4) * liner*liner * stroke * cyl / 9702 * eff;
+    } else {
+      // D, L in mm -> cubic mm -> liters (1 L = 1,000,000 cu mm)
+      bblPerStroke = (Math.PI/4) * liner*liner * stroke * cyl / 1e6 * eff;
+    }
+  } else {
+    bblPerStroke = num('bblStroke');
+    spm = num('spm');
+  }
+  const pumpOutputPerMin = bblPerStroke * spm;
+
+  const lagTimeMin = pumpOutputPerMin > 0 ? totalAnnVol / pumpOutputPerMin : 0;
+  const lagStrokes = bblPerStroke > 0 ? totalAnnVol / bblPerStroke : 0;
+
+  document.getElementById('outLagTime').textContent = formatTime(lagTimeMin);
+  document.getElementById('outLagStrokes').textContent = lagStrokes > 0 ? Math.round(lagStrokes).toLocaleString() + ' stk' : '–';
+  document.getElementById('outAnnVol').textContent = totalAnnVol > 0 ? totalAnnVol.toFixed(1) + ' ' + unitVol : '–';
+  document.getElementById('outPumpOutput').textContent = pumpOutputPerMin > 0 ? pumpOutputPerMin.toFixed(2) + ' ' + unitVol + '/min' : '–';
+
+  const tbody = document.getElementById('tblBody');
+  tbody.innerHTML = '';
+  const lu = unitSystem === 'field' ? 'ft' : 'm';
+  addRow(tbody, 'Cased hole', cappedCsgDepth, lu, capCased, unitCap, volCased, unitVol);
+  if(oh1DpLen > 0) addRow(tbody, useSecondOH ? 'Open Hole 1 (DP)' : 'Open Hole (DP)', oh1DpLen, lu, capOH1DP, unitCap, volOH1DP, unitVol);
+  if(oh1DcLen > 0) addRow(tbody, 'Open Hole 1 (Drill Collars)', oh1DcLen, lu, capOH1DC, unitCap, volOH1DC, unitVol);
+  if(oh2DpLen > 0) addRow(tbody, 'Open Hole 2 (DP)', oh2DpLen, lu, capOH2DP, unitCap, volOH2DP, unitVol);
+  if(oh2DcLen > 0) addRow(tbody, 'Open Hole 2 (Drill Collars)', oh2DcLen, lu, capOH2DC, unitCap, volOH2DC, unitVol);
+
+  const nowInput = document.getElementById('nowTime').value;
+  if(nowInput && lagTimeMin > 0){
+    const nowDate = new Date(nowInput);
+    const sampleDate = new Date(nowDate.getTime() + lagTimeMin*60000);
+    document.getElementById('outSampleTime').textContent = sampleDate.toLocaleString([], {hour12:false});
+  } else {
+    document.getElementById('outSampleTime').textContent = '–';
+  }
+
+  try {
+    drawSketch({
+      td, csgDepth: cappedCsgDepth, bitDia, useSecondOH, crossoverDepth, bitDia2,
+      useDC, dcLen: effDcLen
+    });
+  } catch(err) {
+    console.error('Sketch draw error:', err);
+    document.getElementById('sketch').innerHTML = '';
+  }
+}
+
+function addRow(tbody, label, len, lu, cap, capU, vol, volU){
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${label}</td><td class="num">${len.toFixed(0)} ${lu}</td><td class="num">${cap.toFixed(4)} ${capU}</td><td class="num">${vol.toFixed(1)} ${volU}</td>`;
+  tbody.appendChild(tr);
+}
+
+function setSampleAlarm(){
+  const lagText = document.getElementById('outLagTime').textContent;
+  const match = lagText.match(/(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s)?/);
+  if(!match){
+    document.getElementById('alarmStatus').textContent = 'Calculate lag time first.';
+    return;
+  }
+  const h = parseInt(match[1] || 0, 10);
+  const m = parseInt(match[2] || 0, 10);
+  const s = parseInt(match[3] || 0, 10);
+  const delayMs = ((h*60 + m)*60 + s) * 1000;
+  if(delayMs <= 0){
+    document.getElementById('alarmStatus').textContent = 'Lag time must be greater than zero.';
+    return;
+  }
+  const target = Date.now() + delayMs;
+  if(window.AndroidAlarm && AndroidAlarm.setAlarm){
+    AndroidAlarm.setAlarm(target);
+    document.getElementById('alarmStatus').textContent =
+      'Sample alarm set for ' + new Date(target).toLocaleString([], {hour12:false});
+  } else {
+    document.getElementById('alarmStatus').textContent = 'Alarm works in the Android APK.';
+  }
+}
+
+function cancelSampleAlarm(){
+  if(window.AndroidAlarm && AndroidAlarm.cancelAlarm){
+    AndroidAlarm.cancelAlarm();
+    document.getElementById('alarmStatus').textContent = 'Sample alarm cancelled.';
+  }
+}
+
+function formatTime(mins){
+  if(!mins || mins <= 0) return '–';
+  const h = Math.floor(mins/60);
+  const m = Math.floor(mins%60);
+  const s = Math.round((mins - Math.floor(mins))*60);
+  return (h>0 ? h+'h ' : '') + m+'m ' + s+'s';
+}
+
+function el(tag, attrs){
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+// builds a closed wavy-edged path to represent an irregular open-hole wall
+function wavyRectPath(cx, halfWidth, yTop, yBottom, amp, waveLen){
+  if(yBottom <= yTop) return '';
+  const steps = Math.max(6, Math.round((yBottom-yTop)/6));
+  let leftPts = [], rightPts = [];
+  for(let i=0;i<=steps;i++){
+    const t = i/steps;
+    const y = yTop + t*(yBottom-yTop);
+    const wave = Math.sin((y/waveLen)*Math.PI*2) * amp;
+    leftPts.push([cx-halfWidth+wave, y]);
+    rightPts.push([cx+halfWidth+wave, y]);
+  }
+  let d = `M ${leftPts[0][0].toFixed(1)},${leftPts[0][1].toFixed(1)} `;
+  for(const p of leftPts.slice(1)) d += `L ${p[0].toFixed(1)},${p[1].toFixed(1)} `;
+  for(const p of rightPts.slice().reverse()) d += `L ${p[0].toFixed(1)},${p[1].toFixed(1)} `;
+  d += 'Z';
+  return d;
+}
+
+function drawSketch(p){
+  const { td, csgDepth, bitDia, useSecondOH, crossoverDepth, bitDia2, useDC, dcLen } = p;
+  const svg = document.getElementById('sketch');
+  svg.innerHTML = '';
+  const W = 320;
+  const topY = 30, botY = 400;
+  const scale = td > 0 ? (botY - topY) / td : 0;
+  const csgY = topY + csgDepth * scale;
+  const tdY = topY + td * scale;
+  const crossY = useSecondOH ? topY + crossoverDepth * scale : tdY;
+  const dcStartY = useDC ? tdY - dcLen*scale : tdY;
+
+  const centerX = W/2;
+  const maxHalfWidth = 55;
+  const csgHalf = maxHalfWidth;
+  const oh1Half = maxHalfWidth * 0.65;
+  const oh2Half = useSecondOH && bitDia > 0 ? Math.max(oh1Half * (bitDia2/bitDia), 14) : oh1Half;
+
+  // ground line
+  svg.appendChild(el('line', {x1:centerX-70,y1:topY,x2:centerX+70,y2:topY,stroke:'#4a6580','stroke-width':2}));
+
+  // casing annulus block
+  svg.appendChild(el('rect', {x:centerX-csgHalf, y:topY, width:csgHalf*2, height:Math.max(csgY-topY,0), fill:'var(--casing)', opacity:0.35}));
+  svg.appendChild(el('rect', {x:centerX-csgHalf, y:topY, width:6, height:Math.max(csgY-topY,0), fill:'var(--casing)'}));
+  svg.appendChild(el('rect', {x:centerX+csgHalf-6, y:topY, width:6, height:Math.max(csgY-topY,0), fill:'var(--casing)'}));
+
+  // open hole 1 (wavy)
+  const oh1BottomY = useSecondOH ? crossY : tdY;
+  const oh1Path = wavyRectPath(centerX, oh1Half, csgY, oh1BottomY, 3.2, 22);
+  if(oh1Path){
+    svg.appendChild(el('path', {d:oh1Path, fill:'var(--openhole)', opacity:0.5}));
+    svg.appendChild(el('path', {d:oh1Path, fill:'none', stroke:'#8a6a3f', 'stroke-width':1}));
+  }
+
+  // open hole 2 (wavy, narrower)
+  if(useSecondOH){
+    const nonDcBottom = useDC ? dcStartY : tdY;
+    const oh2Path = wavyRectPath(centerX, oh2Half, crossY, nonDcBottom, 2.4, 18);
+    if(oh2Path){
+      svg.appendChild(el('path', {d:oh2Path, fill:'var(--openhole2)', opacity:0.55}));
+      svg.appendChild(el('path', {d:oh2Path, fill:'none', stroke:'#6e4f28', 'stroke-width':1}));
+    }
+  }
+
+  // drill collars block (sits at bottom of active open hole)
+  if(useDC && dcLen>0){
+    const dcHalf = (useSecondOH ? oh2Half : oh1Half) * 0.55;
+    svg.appendChild(el('rect', {x:centerX-dcHalf, y:dcStartY, width:dcHalf*2, height:Math.max(tdY-dcStartY,0), fill:'var(--collar)'}));
+  }
+
+  // drill pipe down center
+  const dpHalf = 4;
+  svg.appendChild(el('rect', {x:centerX-dpHalf, y:topY, width:dpHalf*2, height:Math.max(dcStartY-topY,0), fill:'#e8eef4'}));
+
+  // casing shoe marker
+  svg.appendChild(el('line', {x1:centerX-csgHalf-6, y1:csgY, x2:centerX+csgHalf+6, y2:csgY, stroke:'var(--accent)', 'stroke-width':1.5, 'stroke-dasharray':'3,2'}));
+  const shoeLbl = el('text', {x:centerX+csgHalf+10, y:csgY+4, fill:'var(--accent)', 'font-size':10});
+  shoeLbl.textContent = `Shoe: ${csgDepth.toLocaleString()}`;
+  svg.appendChild(shoeLbl);
+
+  // crossover / liner marker
+  if(useSecondOH){
+    svg.appendChild(el('line', {x1:centerX-oh1Half-6, y1:crossY, x2:centerX+oh1Half+6, y2:crossY, stroke:'var(--liner)', 'stroke-width':1.5, 'stroke-dasharray':'2,2'}));
+    const coLbl = el('text', {x:centerX+oh1Half+10, y:crossY+4, fill:'var(--liner)', 'font-size':10});
+    coLbl.textContent = `Liner: ${crossoverDepth.toLocaleString()}`;
+    svg.appendChild(coLbl);
+  }
+
+  // bit / TD marker
+  const bitHalfForLabel = useSecondOH ? oh2Half : oh1Half;
+  const bitLbl = el('text', {x:centerX+bitHalfForLabel+10, y:tdY+4, fill:'var(--accent2)', 'font-size':10});
+  bitLbl.textContent = `Bit: ${td.toLocaleString()}`;
+  svg.appendChild(bitLbl);
+  svg.appendChild(el('polygon', {points:`${centerX-8},${tdY} ${centerX+8},${tdY} ${centerX},${tdY+12}`, fill:'var(--accent2)'}));
+
+  // surface label
+  const surfLbl = el('text', {x:centerX-70, y:topY-8, fill:'var(--dim)', 'font-size':10});
+  surfLbl.textContent = 'Surface';
+  svg.appendChild(surfLbl);
+
+  if(useDC && dcLen>0){
+    const dcLbl = el('text', {x:centerX+bitHalfForLabel+10, y:(dcStartY+tdY)/2, fill:'#c9c9d0', 'font-size':9});
+    dcLbl.textContent = 'DC';
+    svg.appendChild(dcLbl);
+  }
+}
+
+(function(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  document.getElementById('nowTime').value = d.toISOString().slice(0,16);
+})();
+
+document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calc));
+calc();
+</script>
+</body>
+</html>
