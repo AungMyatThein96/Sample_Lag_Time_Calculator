@@ -479,12 +479,24 @@ function calc(){
 
   const nowInput = document.getElementById('nowTime').value;
   if(nowInput && lagTimeMin > 0){
-    const nowDate = new Date(nowInput);
-    const sampleDate = new Date(nowDate.getTime() + lagTimeMin*60000);
-    document.getElementById('outSampleTime').textContent = sampleDate.toLocaleString([], {hour12:false});
-  } else {
-    document.getElementById('outSampleTime').textContent = '–';
-  }
+    const nowDate = new Date();
+
+if(lagTimeMin > 0){
+  const sampleDate = new Date(nowDate.getTime() + lagTimeMin * 60000);
+
+  document.getElementById('outSampleTime').textContent =
+    sampleDate.toLocaleString([], {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+} else {
+  document.getElementById('outSampleTime').textContent = '–';
+}
 
   try {
     drawSketch({
@@ -655,11 +667,23 @@ function drawSketch(p){
   }
 }
 
-(function(){
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  document.getElementById('nowTime').value = d.toISOString().slice(0,16);
-})();
+function updateDeviceTime(){
+  const now = new Date();
+
+  document.getElementById('nowTime').value =
+    now.toLocaleString([], {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+}
+
+updateDeviceTime();
+setInterval(updateDeviceTime, 1000);
 
 document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calc));
 calc();
